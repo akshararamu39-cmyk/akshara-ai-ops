@@ -33,17 +33,15 @@ class TicketCreate(BaseModel):
     description: str = Field(..., min_length=5, max_length=3000)
 
 
-def _suggest_triage(title: str, description: str) -> dict:
-    text = f"{title} {description}".lower()
-    if "cctv" in text or "camera" in text:
-        return {"category": "CCTV", "priority": "HIGH", "confidence": 0.89, "requires_human_review": True, "is_suggestion_only": True}
-    if "password" in text or "login" in text or "account" in text:
-        return {"category": "ACCOUNT_ACCESS", "priority": "HIGH", "confidence": 0.86, "requires_human_review": True, "is_suggestion_only": True}
-    if "wifi" in text or "network" in text or "internet" in text:
-        return {"category": "NETWORK", "priority": "HIGH", "confidence": 0.88, "requires_human_review": False, "is_suggestion_only": True}
-    if "projector" in text or "panel" in text or "smartboard" in text:
-        return {"category": "CLASSROOM_TECHNOLOGY", "priority": "MEDIUM", "confidence": 0.90, "requires_human_review": False, "is_suggestion_only": True}
-    return {"category": "HARDWARE", "priority": "MEDIUM", "confidence": 0.68, "requires_human_review": True, "is_suggestion_only": True}
+@app.get("/")
+def home():
+    return {
+        "app": "Akshara AI Operations Platform",
+        "status": "running",
+        "branches": len(BRANCHES),
+        "includes_pocharam": True,
+        "docs_url": "/docs",
+    }
 
 
 @app.get("/health")
@@ -84,17 +82,13 @@ def create_ticket(
     if x_role != "CENTRAL_IT_ADMIN" and payload.branch_id != x_branch_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Branch access denied")
 
-    suggestion = _suggest_triage(payload.title, payload.description)
     now = datetime.now(timezone.utc).isoformat()
     ticket = {
         "id": f"tkt-{len(TICKETS) + 1:04d}",
         "branch_id": payload.branch_id,
         "title": payload.title,
         "description": payload.description,
-        "category": suggestion["category"],
-        "priority": suggestion["priority"],
         "status": "NEW",
-        "ai_suggestion": suggestion,
         "created_at": now,
     }
     TICKETS.append(ticket)
